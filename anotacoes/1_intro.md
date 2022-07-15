@@ -140,3 +140,45 @@ docker rm -f $(docker ps -qa)
 # 'docker rmi -f' excluir forçadamente as imagens selecionadas
 docker rmi -f $(docker images -qa)
 ```
+
+### [Video - Ingesting NY Taxi Data to Postgres](https://www.youtube.com/watch?v=2JM-ziJt0WI&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb)
+
+No futuro iremos utilizar o _Apache Airflow_ que usa internamente o _PostgreSQL_.
+
+Para rodar a versão contêinirizada do _Postgres_ é necessário passar somente algumas **variáveis de ambiente** assim como um **volume** para persistir os dados do banco de dados.
+
+Foi criada uma pasta localmente chamada `nyc_taxi_postgres_data` para armazenar os dados de instalação do _PostgreSQL_ criado no volume do contêiner. O comando passado ao Docker pela linha de comando fica:
+
+```bash
+docker run -it \
+    -e POSTGRES_USER="root" \
+    -e POSTGRES_PASSWORD="root" \
+    -e POSTGRES_DB="ny_taxi" \
+    -v $(pwd)/nyc_taxi_postgres_data:/var/lib/postgresql/data \
+    -p 5432:5432 \
+    postgres:13
+```
+
+O contêiner precisa de 3 variáveis de ambiente:
+* `POSTGRES_USER` é o nome de usuário para login. Por padrão é `root`
+* `POSTGRES_PASSWORD` é a senha para o banco de dados. Por padrão é `root`
+* `POSTGRES_DB` é o nome para o banco de dados
+
+**IMPORTANTE: A escolha da senha e usuário acima foram só para testes. Em produção utilizar valores mais seguros.**
+
+A flag `-v` passada para o `docker run` diz respeito ao diretório para o volume. Os dois pontos `:` separam as duas partes da sentença: 
+* a primeira diz respeito ao diretório local, dentro do computador do usuário
+* a segunda parte diz respeito ao diretório no contêiner criado.
+
+**IMPORTANTE: É feito o mapeamento do diretório local, apontando para a pasta recém-criada chamada `nyc_taxi_postgres_data`. Para o comando funcionar ela tem que existir e estar corretamente mapeada na primeira parte da sentença para criação do volume.**
+
+A flag `-p`, semelhantemente à flag `-v`, mapeia um item local à um item no contêiner. No caso, é o mapeamento de portas. O separador continua sendo o `:` e a ordem da declaração da sentença a mesma também.
+
+A última parte é a declaração da imagem e da tag. Foi passada a imagem oficial do Docker `postgres` com a versão `13`.
+
+---
+Após configurar o _Postgres_, foi criado um _Jupyter Notebook_ chamado `upload_data.ipynb` para ler o arquivo PARQUET e exportá-lo para o _PostgreSQL_.
+
+Utilizamos os dados do [NYC TLC Trip Record Data](https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page), especificamente os dados do [Yellow Taxi Trip Records de Janeiro de 2021](https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2021-01.parquet). Um dicionário de dados para entender cada campo é [disponibilizado](https://www1.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf) pelo site.
+
+O arquivo `upload_data.ipynb` completo com todas as partes detalhadas está disponível [neste link](https://github.com/kevinnakasaki/DE_zoomcamp_2022/blob/main/1_intro/1_2_intro_postgres/upload_data.ipynb).
