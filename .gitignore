@@ -1,3 +1,6 @@
 *.csv
 *.json
 *.json.gz
+
+1_intro/1_2_intro_postgres/nyc_taxi_data/*
+1_intro/1_2_intro_postgres/nyc_taxi_postgres_data/*
