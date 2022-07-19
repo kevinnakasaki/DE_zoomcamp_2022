@@ -181,4 +181,76 @@ Após configurar o _Postgres_, foi criado um _Jupyter Notebook_ chamado `upload_
 
 Utilizamos os dados do [NYC TLC Trip Record Data](https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page), especificamente os dados do [Yellow Taxi Trip Records de Janeiro de 2021](https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2021-01.parquet). Um dicionário de dados para entender cada campo é [disponibilizado](https://www1.nyc.gov/assets/tlc/downloads/pdf/data_dictionary_trip_records_yellow.pdf) pelo site.
 
-O arquivo `upload_data.ipynb` completo com todas as partes detalhadas está disponível [neste link](https://github.com/kevinnakasaki/DE_zoomcamp_2022/blob/main/1_intro/1_2_intro_postgres/upload_data.ipynb).
+O arquivo `upload_data.ipynb` completo com todas as partes detalhadas está disponível [neste link](../1_intro/1_2_intro_postgres/upload_data.ipynb).
+
+### [Video - Connecting pgAdmin and PostgreSQL](https://www.youtube.com/watch?v=hCAIVe9N0ow&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=6)
+
+Podemos manipular os dados pela linha de comando ou pelo Python, porém para atividades mais rotineiras ou desenvolvimento do banco de dados, é interessante acessar via alguma ferramenta desenvolvida para tal.
+
+O [pgAdmin](https://www.pgadmin.org/) vêm para nos auxiliar nesse sentido. É uma ferramenta _web-based_ de código aberto que oferece uma interface gráfica que simplifica a criação, manutenção e uso dos objetos do banco de dados.
+
+Assim como o Postgres, é possível rodar o pgAdmin com o uso de contêineres, mas para isso, é necessário colocar ambos os itens (Postgres e pgAdmin) no mesmo contêiner ou então na mesma rede. Para isso, no Docker temos as **virtual networks**.
+
+É criada então uma rede no Docker, chamada de `pg-network`:
+
+```bash
+docker network create pg-network
+```
+
+Nós vamos ter que parar o contêiner do Postgres e rodar novamente passando informações para alocá-lo nessa rede criada:
+
+```bash
+# Parando o contêiner do Postgres
+docker stop <id_do_contêiner_do_postgres>
+
+# Rodando o contêiner novamente e passando os dados da rede
+docker run -it \
+    -e POSTGRES_USER="root" \
+    -e POSTGRES_PASSWORD="root" \
+    -e POSTGRES_DB="ny_taxi" \
+    -v $(pwd)/nyc_taxi_postgres_data:/var/lib/postgresql/data \
+    -p 5432:5432 \
+    --network=pg-network \
+    --name pg-database \
+    postgres:13
+```
+
+Agora podemos rodar o contêiner do pgAdmin:
+
+```bash
+docker run -it \
+    -e PGADMIN_DEFAULT_EMAIL="admin@admin.com" \
+    -e PGADMIN_DEFAULT_PASSWORD="root" \
+    -p 8080:80 \
+    --network=pg-network \
+    --name pgadmin \
+    dpage/pgadmin4
+```
+
+O contêiner precisa de 2 variáveis de ambiente:
+* `PGADMIN_DEFAULT_EMAIL` é o e-mail para login. Usamos `admin@admin.com`
+* `PGADMIN_DEFAULT_PASSWORD` é a senha para login. Usamos `root`
+
+**IMPORTANTE: A escolha da senha e usuário acima foram só para testes. Em produção utilizar valores mais seguros.**
+
+* O pgAdmin é uma ferramenta web e sua porta padrão é 80 no contêiner. Mapeamos localmente para a nossa porta 8080.
+* Assim como o contêiner do Postgres, especificamos a rede e o nome do objeto nessa rede
+* A imagem do Docker utilizada foi a [`dpage/pgadmin4`](https://hub.docker.com/r/dpage/pgadmin4/)
+
+Agora nós somos capazes de carregar o pgAdmin em um _browser_ acessando `localhost:8080`. Usando o e-mail e a senha passados para o contêiner, conseguimos logar na ferramenta.
+
+![passos_pgadmin](../anotacoes/img/01_02.png)
+
+Clicando com o botão direito do mouse em _Servers_, selecionamos _Register > Server..._
+
+![passos_pgadmin](../anotacoes/img/01_03.png)
+
+Em _General_, damos um nome ao servidor e em _Connection_ adicionamos o mesmo nome (_hostname_), usuário e senha que foram informados na criação do contêiner.
+
+![passos_pgadmin](../anotacoes/img/01_04.png)
+
+![passos_pgadmin](../anotacoes/img/01_05.png)
+
+Clicamos então em _Save_. Agora estaremos conectados ao servidor com o banco de dados utilizado no vídeo anterior.
+
+![passos_pgadmin](../anotacoes/img/01_06.png)
