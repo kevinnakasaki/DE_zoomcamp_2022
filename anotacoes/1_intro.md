@@ -41,7 +41,7 @@ Os **volumes** são diretórios externos ao contêiner, que são montados direta
 * Alterações em um volume **não irão com a imagem** quando for feita cópia ou _snapshot_ de um contêiner
 * Volumes **continuam a existir mesmo se o contêiner for deletado**
 
-### [Video - Introduction to Docker](https://www.youtube.com/watch?v=EYNwNlOrpr0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb)
+## [Video - Introduction to Docker](https://www.youtube.com/watch?v=EYNwNlOrpr0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb)
 
 Para o meu Linux Mint, instalei o Docker e o Docker Compose, ambos requisitos do curso, conforme abaixo:
 
@@ -141,7 +141,7 @@ docker rm -f $(docker ps -qa)
 docker rmi -f $(docker images -qa)
 ```
 
-### [Video - Ingesting NY Taxi Data to Postgres](https://www.youtube.com/watch?v=2JM-ziJt0WI&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb)
+## [Video - Ingesting NY Taxi Data to Postgres](https://www.youtube.com/watch?v=2JM-ziJt0WI&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb)
 
 No futuro iremos utilizar o _Apache Airflow_ que usa internamente o _PostgreSQL_.
 
@@ -183,13 +183,13 @@ Utilizamos os dados do [NYC TLC Trip Record Data](https://www1.nyc.gov/site/tlc/
 
 O arquivo `upload_data.ipynb` completo com todas as partes detalhadas está disponível [neste link](../1_intro/1_2_intro_postgres/upload_data.ipynb).
 
-### [Video - Connecting pgAdmin and PostgreSQL](https://www.youtube.com/watch?v=hCAIVe9N0ow&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=6)
+## [Video - Connecting pgAdmin and PostgreSQL](https://www.youtube.com/watch?v=hCAIVe9N0ow&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=6)
 
 Podemos manipular os dados pela linha de comando ou pelo Python, porém para atividades mais rotineiras ou desenvolvimento do banco de dados, é interessante acessar via alguma ferramenta desenvolvida para tal.
 
 O [pgAdmin](https://www.pgadmin.org/) vêm para nos auxiliar nesse sentido. É uma ferramenta _web-based_ de código aberto que oferece uma interface gráfica que simplifica a criação, manutenção e uso dos objetos do banco de dados.
 
-Assim como o Postgres, é possível rodar o pgAdmin com o uso de contêineres, mas para isso, é necessário colocar ambos os itens (Postgres e pgAdmin) no mesmo contêiner ou então na mesma rede. Para isso, no Docker temos as **virtual networks**.
+Assim como o _Postgres_, é possível rodar o pgAdmin com o uso de contêineres, mas para isso, é necessário colocar ambos os itens (_Postgres_ e pgAdmin) no mesmo contêiner ou então na mesma rede. Para isso, no Docker temos as **virtual networks**.
 
 É criada então uma rede no Docker, chamada de `pg-network`:
 
@@ -197,7 +197,7 @@ Assim como o Postgres, é possível rodar o pgAdmin com o uso de contêineres, m
 docker network create pg-network
 ```
 
-Nós vamos ter que parar o contêiner do Postgres e rodar novamente passando informações para alocá-lo nessa rede criada:
+Nós vamos ter que parar o contêiner do _Postgres_ e rodar novamente passando informações para alocá-lo nessa rede criada:
 
 ```bash
 # Parando o contêiner do Postgres
@@ -234,7 +234,7 @@ O contêiner precisa de 2 variáveis de ambiente:
 **IMPORTANTE: A escolha da senha e usuário acima foram só para testes. Em produção utilizar valores mais seguros.**
 
 * O pgAdmin é uma ferramenta web e sua porta padrão é 80 no contêiner. Mapeamos localmente para a nossa porta 8080.
-* Assim como o contêiner do Postgres, especificamos a rede e o nome do objeto nessa rede
+* Assim como o contêiner do _Postgres_, especificamos a rede e o nome do objeto nessa rede
 * A imagem do Docker utilizada foi a [`dpage/pgadmin4`](https://hub.docker.com/r/dpage/pgadmin4/)
 
 Agora nós somos capazes de carregar o pgAdmin em um _browser_ acessando `localhost:8080`. Usando o e-mail e a senha passados para o contêiner, conseguimos logar na ferramenta.
@@ -254,3 +254,105 @@ Em _General_, damos um nome ao servidor e em _Connection_ adicionamos o mesmo no
 Clicamos então em _Save_. Agora estaremos conectados ao servidor com o banco de dados utilizado no vídeo anterior.
 
 ![passos_pgadmin](../anotacoes/img/01_06.png)
+
+## [Video - Dockerizing the Ingestion Script](https://www.youtube.com/watch?v=B1WwATwf-vY&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb)
+
+Agora vamos exportar o _Jupyter Notebook_ que faz a ingestão dos dados para o _Postgres_, para um script em Python padrão e fazer com que o Docker o execute.
+
+### Exportando e testando o script
+Primeiro, foi necessário instalar o jupyter e o nbconvert no meu ambiente virtual. Visto que estou utilizando o Linux e a instalação do Python foi feita sem o Anaconda.
+
+```bash
+pip install jupyter nbconvert
+```
+
+Em seguida, é possível converter o _notebook_ para um script `.py` com o comando abaixo.
+
+```bash
+jupyter nbconvert --to=script upload_data.ipynb
+```
+
+Após a conversão, foi necessário remover tudo o que não precisamos para o script e formatá-lo para as convenções adotadas pela comunidade. O arquivo foi renomeado para `ingest_data.py` e algumas modificações foram adicionadas:
+* Usamos o [argparse](https://docs.python.org/3/library/argparse.html) para lidar com os seguintes argumentos, passados pela linha de comando:
+    * username
+    * password
+    * hostname
+    * port
+    * database name
+    * table name
+    * URL para o arquivo PARQUET
+* A _engine_ que criamos deve suportar receber esses argumentos
+    ```python
+    engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')
+    ```
+* Também fizemos o download do arquivo PARQUET usando a URL passada como argumento
+
+O arquivo `ingest_data.py` completo com todas as partes detalhadas está disponível [neste link](../1_intro/1_2_intro_postgres/ingest_data.py).
+
+Para testar o script, foi necessário deletar a tabela que havia sido criada pelos métodos anteriores. No pgAdmin, foi necessário executar o seguinte comando:
+
+```sql
+DROP TABLE public.yellow_taxi_data
+```
+
+Após isso, foi possível testar o script com o comando:
+
+```bash
+python ingest_data.py \
+    --user=root \
+    --password=root \
+    --host=localhost \
+    --port=5432 \
+    --db=ny_taxi \
+    --table_name=yellow_taxi_trips \
+    --url="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2021-01.parquet"
+```
+**IMPORTANTE: Note que mudamos o nome da tabela de `yellow_taxi_data` para `yellow_taxi_trips`.**
+
+Após o processo finalizar no _terminal_, verificamos se o processo rodou com êxito ao verificar as quantidades na nova tabela pelo pgAdmin.
+
+img SELECT COUNT(1) FROM public.yellow_taxi_trips
+
+### Dockerizando o script
+
+Criamos agora um _Dockerfile_ dentro do diretório do script `ingest_data.py` e criamos uma nova imagem que vai cuidar da execução do script.
+
+```bash
+FROM python:3.9.1
+
+# Precisamos garantir que haja o wget para baixar o arquivo
+RUN apt-get install wget
+
+# psycopg2 é um adaptador de Postgres para Python e o sqlalchemy precisa dele
+RUN pip install pandas sqlalchemy psycopg2
+
+WORKDIR /app
+COPY ingest_data.py ingest_data.py
+
+ENTRYPOINT [ "python", "ingest_data.py" ]
+```
+
+Construindo a imagem com:
+
+```bash
+docker build -t taxi_ingest:v001 .
+```
+
+E rodando o comando para usar a imagem na criação de um contêiner:
+
+```bash
+docker run -it \
+    --network=pg-network \
+    taxi_ingest:v001 \
+    --user=root \
+    --password=root \
+    --host=pg-database \
+    --port=5432 \
+    --db=ny_taxi \
+    --table_name=yellow_taxi_trips \
+    --url="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2021-01.parquet"
+```
+
+* Nós precisamos passar a rede para o Docker encontrar o contêiner com o _Postgres_ em execução. **Este argumento tem que ser passado antes do nome da imagem**
+* É necessário apontar o nome do contêiner que possui o _Postgres_ em execução
+* Já que não mudamos o nome da tabela entre a execução manual do script (para os testes) e a execução do script pelo Docker, não precisamos DROPAR a tabela antes, visto que o script irá substituir a tabela se já houver uma com o mesmo nome no banco de dados.
