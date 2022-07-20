@@ -311,7 +311,7 @@ python ingest_data.py \
 
 Após o processo finalizar no _terminal_, verificamos se o processo rodou com êxito ao verificar as quantidades na nova tabela pelo pgAdmin.
 
-img SELECT COUNT(1) FROM public.yellow_taxi_trips
+![passos_pgadmin](../anotacoes/img/01_07.png)
 
 ### Dockerizando o script
 
@@ -324,13 +324,18 @@ FROM python:3.9.1
 RUN apt-get install wget
 
 # psycopg2 é um adaptador de Postgres para Python e o sqlalchemy precisa dele
-RUN pip install pandas sqlalchemy psycopg2
+RUN pip install pandas sqlalchemy pyarrow psycopg2-binary
 
 WORKDIR /app
 COPY ingest_data.py ingest_data.py
 
+# Cria o diretório para armazenar os arquivos de origem
+RUN mkdir -p ./nyc_taxi_data
+
 ENTRYPOINT [ "python", "ingest_data.py" ]
 ```
+
+**IMPORTANTE: Para que o script rode sem erros, é necessário que exista um diretório para armazenar o arquivo baixado com os dados da origem. Esse diretório é criado na linha `RUN mkdir -p ./nyc_taxi_data` acima.**
 
 Construindo a imagem com:
 
