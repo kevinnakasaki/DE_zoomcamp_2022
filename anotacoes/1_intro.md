@@ -361,3 +361,67 @@ docker run -it \
 * Nós precisamos passar a rede para o Docker encontrar o contêiner com o _Postgres_ em execução. **Este argumento tem que ser passado antes do nome da imagem**
 * É necessário apontar o nome do contêiner que possui o _Postgres_ em execução
 * Já que não mudamos o nome da tabela entre a execução manual do script (para os testes) e a execução do script pelo Docker, não precisamos DROPAR a tabela antes, visto que o script irá substituir a tabela se já houver uma com o mesmo nome no banco de dados.
+
+## [Video - Running Postgres and pgAdmin with Docker-Compose](https://www.youtube.com/watch?v=hKI6PkPhpa0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb&index=8)
+
+O _Docker Compose_ é um orquestrador de contêineres que, assim como um maestro em uma orquestra, tem o papel de reger como cada contêiner deve se comportar durante determinado projeto.
+
+Não utilizamos o Dockerfile para a criação dos contêineres e sim um arquivo semelhante escrito em YAML, um formato de codificação de dados legíveis por humanos, o que torna fácil de ler e entender o que o _Docker Compose_ irá fazer. Neste arquivo definimos cada contêiner como **serviço**, com a possibilidade de especificar os seus volumes, redes, variáveis de ambiente e muito mais, de forma simples e assertiva.
+
+Criei os contêineres antes criados via vários `docker run` com suas especificações únicas, através de um arquivo chamado `docker-compose.yaml`:
+
+```yaml
+services:
+  pgdatabase:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=ny_taxi
+    volumes:
+      - "./nyc_taxi_postgres_data:/var/lib/postgresql/data:rw"
+    ports:
+      - "5432:5432"
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=root
+    volumes:
+      - "./data_pgadmin:/var/lib/pgadmin:rw"
+    depends_on:
+      - pgdatabase
+    ports:
+      - "8080:80"
+```
+
+* Nós não precisamos especificar a rede porque o próprio _Docker Compose_ cuida disso: cada contêiner (ou "serviço") irá rodar dentro de uma mesma rede, permitindo que eles consigam se acessar através de seus nomes (no caso `pgdatabase` e `pgadmin` no exemplo)
+* O item `:rw` a frente de cada volume criado, é o modo utilizado pelo volume. Não precisamos especificar isso, visto que o padrão é `read-write (rw)`, mas é interessante deixar explícito
+* O item `depends_on` cria uma dependência entre os contêineres, fazendo com que um só seja criado após o outro
+* Nós adicionamos um volume para o pgAdmin para salvar as configurações feitas no ambiente, desta forma não é preciso reconfigurar a conexão com o _Postgres_ sempre que o serviço for rodado novamente. **IMPORTANTE: Foi necessário criar a pasta `data_pgadmin` dentro do diretório do arquivo YAML para que o volume fosse criado corretamente.**
+
+Durante a criação do diretório `data_pgadmin` é importante deixar o acesso livre para o usuário do pgAdmin (UID: 5050) e grupo pgAdmin (GID: 5050) dentro da máquina de _host_. Para isso será necessário alterar as permissões:
+
+```bash
+sudo chown -R 5050:5050 data_pgadmin/
+```
+
+Agora pude rodar as instruções do arquivo `docker-compose.yaml` através do comando abaixo, se estivermos na mesma pasta que o arquivo. **IMPORTANTE: Antes é necessário se certificar que nenhum outro contêiner esteja rodando.**
+
+```bash
+docker compose up
+```
+
+Já que desliguei os contêineres que estavam sendo executados anteriormente e estamos recriando os mesmos, será necessário reconfigurar a conexão entre o pgAdmin e o _Postgres_, para isso basta seguir os passos anteriores da configuração da conexão.
+
+Para desligar os contêineres executados com o `docker compose` é possível pressionar `Ctrl+C`, porém para que eles sejam não só parados como também excluídos, é necessário o comando:
+
+```bash
+docker compose down
+```
+
+E para rodar os serviços novamente, mas no plano de fundo, desvinculando-os do terminal:
+
+```bash
+docker compose up -d
+```
